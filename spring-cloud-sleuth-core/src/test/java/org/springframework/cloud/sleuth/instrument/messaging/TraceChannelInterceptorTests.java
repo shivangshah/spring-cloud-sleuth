@@ -46,7 +46,7 @@ import org.springframework.messaging.MessagingException;
 import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
 
-import static org.assertj.core.api.BDDAssertions.then;
+import static org.springframework.cloud.sleuth.assertions.SleuthAssertions.then;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
@@ -87,6 +87,7 @@ public class TraceChannelInterceptorTests implements MessageHandler {
 	@Before
 	public void init() {
 		this.channel.subscribe(this);
+		this.app.events.clear();
 	}
 
 	@After
@@ -108,7 +109,7 @@ public class TraceChannelInterceptorTests implements MessageHandler {
 	}
 
 	@Test
-	public void parentSpanIncluded() {
+	public void shouldCreateANewSpanWhenThereWasNoTracingGoingOn() {
 		this.channel.send(MessageBuilder.withPayload("hi")
 				.setHeader(Span.TRACE_ID_NAME, Span.idToHex(10L))
 				.setHeader(Span.SPAN_ID_NAME, Span.idToHex(20L)).build());
@@ -121,6 +122,17 @@ public class TraceChannelInterceptorTests implements MessageHandler {
 		then(traceId).isEqualTo(10L);
 		then(spanId).isNotEqualTo(20L);
 		assertEquals(1, this.app.events.size());
+	}
+
+	@Test
+	public void shouldContinueAPreviousSpanWhenThereWasTracingGoingOn() {
+		Span span = this.tracer.startTrace("http:testSendMessage", new AlwaysSampler());
+		this.messagingTemplate.send(MessageBuilder.withPayload("hi").build());
+
+		this.tracer.close(span);
+
+		then(this.app.events).hasSize(1);
+		then(span).hasLoggedAnEvent("message:channel");
 	}
 
 	@Test

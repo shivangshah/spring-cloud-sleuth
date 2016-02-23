@@ -1,9 +1,14 @@
 package org.springframework.cloud.sleuth.instrument.web.multiple;
 
+import java.util.Collections;
+import java.util.Map;
+import java.util.stream.Collectors;
+
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.cloud.sleuth.Log;
 import org.springframework.cloud.sleuth.Sampler;
 import org.springframework.cloud.sleuth.Span;
 import org.springframework.cloud.sleuth.Tracer;
@@ -46,8 +51,11 @@ public class MultipleHopsIntegrationTests extends AbstractMvcIntegrationTest {
 		await().until(() -> {
 			then(this.arrayListSpanAccumulator.getSpans().stream().map(Span::getName)
 					.collect(
-					toList())).containsAll(asList("http:/greeting", "message:greetings",
-													"message:words", "message:counts"));
+					toList())).containsAll(Collections.singletonList("http:/greeting"));
+			then(this.arrayListSpanAccumulator.getSpans().stream().flatMap(span -> span.logs().stream())
+					.map(Log::getEvent).collect(Collectors.toList()))
+					.containsAll(asList("message:greetings",
+							"message:words", "message:counts"));
 		});
 	}
 

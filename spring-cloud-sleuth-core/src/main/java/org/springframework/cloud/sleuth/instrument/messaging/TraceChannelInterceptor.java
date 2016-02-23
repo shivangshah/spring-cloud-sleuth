@@ -38,26 +38,40 @@ public class TraceChannelInterceptor extends AbstractTraceChannelInterceptor {
 
 	@Override
 	public void postSend(Message<?> message, MessageChannel channel, boolean sent) {
-		getTracer().close(SpanMessageHeaders.getSpanFromHeader(message));
+		Span span = SpanMessageHeaders.getSpanFromHeader(message);
+		Boolean created = SpanMessageHeaders.getSpanCreatedFromHeader(message);
+		if (Boolean.TRUE.equals(created)) {
+			getTracer().close(span);
+		}
 	}
 
 	@Override
 	public Message<?> preSend(Message<?> message, MessageChannel channel) {
 		Span parentSpan = getTracer().isTracing() ? getTracer().getCurrentSpan()
 				: buildSpan(message);
+		boolean created = !getTracer().isTracing();
 		String name = getMessageChannelName(channel);
-		Span span = startSpan(parentSpan, name, message);
-		return SpanMessageHeaders.addSpanHeaders(getTraceKeys(), message, span);
+		Span span = startSpan(parentSpan, created, name, message);
+		return SpanMessageHeaders.addSpanHeaders(getTraceKeys(), message, span, created);
 	}
 
-	private Span startSpan(Span span, String name, Message<?> message) {
-		if (span != null) {
-			return getTracer().joinTrace(name, span);
-		}
+	private Span startSpan(Span parentSpan, boolean created, String name, Message<?> message) {
 		if (message.getHeaders().containsKey(Span.NOT_SAMPLED_NAME)) {
 			return getTracer().startTrace(name, NeverSampler.INSTANCE);
 		}
-		return getTracer().startTrace(name);
+		if (parentSpan == null) {
+			return getTracer().startTrace(name);
+		}
+		Span span = span(parentSpan, created, name);
+		span.logEvent(name);
+		return span;
+	}
+
+	private Span span(Span parentSpan, boolean created, String name) {
+		if (!created) {
+			return getTracer().continueSpan(parentSpan);
+		}
+		return getTracer().joinTrace(name, parentSpan);
 	}
 
 	@Override

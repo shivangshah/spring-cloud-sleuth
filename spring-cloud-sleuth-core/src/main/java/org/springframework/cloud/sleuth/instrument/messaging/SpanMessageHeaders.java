@@ -34,24 +34,33 @@ import org.springframework.util.StringUtils;
  * @author Dave Syer
  *
  */
-public class SpanMessageHeaders {
+class SpanMessageHeaders {
 
 	public static final String SPAN_HEADER = "X-Current-Span";
+	public static final String SPAN_CREATED_HEADER = "X-Span-Created";
 
 	public static Span getSpanFromHeader(Message<?> message) {
+		return getFromHeader(message, Span.class , SPAN_HEADER);
+	}
+
+	public static Boolean getSpanCreatedFromHeader(Message<?> message) {
+		return getFromHeader(message, Boolean.class , SPAN_CREATED_HEADER);
+	}
+
+	@SuppressWarnings("unchecked")
+	private static <T> T getFromHeader(Message<?> message, Class<T> clazz, String headerName) {
 		if (message == null) {
 			return null;
 		}
-		Object object = message.getHeaders().get(SPAN_HEADER);
-		if (object instanceof Span) {
-			return (Span) object;
+		Object object = message.getHeaders().get(headerName);
+		if (object.getClass().isAssignableFrom(clazz)) {
+			return (T) object;
 		}
 		return null;
 	}
 
 	public static Message<?> addSpanHeaders(TraceKeys traceKeys, Message<?> message,
-			Span span) {
-
+			Span span, boolean spanCreated) {
 		MessageHeaderAccessor accessor = MessageHeaderAccessor
 				.getMutableAccessor(message);
 		if (span == null) {
@@ -80,6 +89,7 @@ public class SpanMessageHeaders {
 			addHeader(headers, Span.NOT_SAMPLED_NAME, "true");
 		}
 		accessor.setHeader(SPAN_HEADER, span);
+		accessor.setHeader(SPAN_CREATED_HEADER, spanCreated);
 		accessor.copyHeaders(headers);
 		if (accessor instanceof NativeMessageHeaderAccessor) {
 			NativeMessageHeaderAccessor nativeAccessor = (NativeMessageHeaderAccessor) accessor;

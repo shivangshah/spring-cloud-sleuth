@@ -40,7 +40,7 @@ public class SpanMessageHeadersTests {
 	public void spanHeadersAdded() {
 		Span span = Span.builder().name("http:foo").spanId(1L).traceId(2L).build();
 		Message<?> message = new GenericMessage<>("Hello World");
-		message = SpanMessageHeaders.addSpanHeaders(this.traceKeys, message, span);
+		message = SpanMessageHeaders.addSpanHeaders(this.traceKeys, message, span, true);
 		assertThat(message.getHeaders()).containsKey(Span.SPAN_ID_NAME);
 	}
 
@@ -49,7 +49,7 @@ public class SpanMessageHeadersTests {
 		Span span = Span.builder().name("http:foo").spanId(1L).traceId(2L).build();
 		MessageHeaderAccessor accessor = SimpMessageHeaderAccessor.create();
 		Message<?> message = MessageBuilder.createMessage("Hello World", accessor.getMessageHeaders());
-		message = SpanMessageHeaders.addSpanHeaders(this.traceKeys, message, span);
+		message = SpanMessageHeaders.addSpanHeaders(this.traceKeys, message, span, true);
 		assertThat(message.getHeaders())
 				.containsKey(NativeMessageHeaderAccessor.NATIVE_HEADERS);
 		MessageHeaderAccessor natives = NativeMessageHeaderAccessor
