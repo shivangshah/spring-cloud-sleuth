@@ -1,5 +1,7 @@
 package org.springframework.cloud.sleuth.zipkin;
 
+import java.util.concurrent.atomic.AtomicReference;
+
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import zipkin.Endpoint;
@@ -11,6 +13,8 @@ import zipkin.Endpoint;
  * @since 1.0.0
  */
 public class FallbackHavingEndpointLocator implements EndpointLocator {
+
+	private final AtomicReference<Endpoint> endpointCache = new AtomicReference<>();
 
 	private static final Log log = LogFactory.getLog(FallbackHavingEndpointLocator.class);
 
@@ -25,6 +29,15 @@ public class FallbackHavingEndpointLocator implements EndpointLocator {
 
 	@Override
 	public Endpoint local() {
+		if (this.endpointCache.get() != null) {
+			return this.endpointCache.get();
+		}
+		Endpoint endpoint = endpoint();
+		this.endpointCache.set(endpoint);
+		return endpoint;
+	}
+
+	private Endpoint endpoint() {
 		if (this.discoveryClientEndpointLocator == null) {
 			return this.serverPropertiesEndpointLocator.local();
 		}
